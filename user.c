@@ -50,9 +50,6 @@ if((msqid = msgget(key, PERMS)) == -1){
 }
 
 
-//Set up timer just in case
-alarm(1);
-signal(SIGALRM, myhandler);
 signal(SIGINT, myhandler);
 
 
@@ -70,6 +67,8 @@ int* clock = (int*)(paddr);
 int x = 0;
 int oneK = 1000;
 int termFlag = 0;
+
+srand(time(0));
 
 printf("I am process: %d\n", index);
 
@@ -93,10 +92,13 @@ buf.procIndex = index;
 
 //Roll to see if we should terminate after every 1k memory references. Giving this a 40% chance.
 if(x >= oneK){
-
+	
+	
 	int terminate = (rand() % 10 + 1);
 
-	if(terminate == 1 || terminate == 2 || terminate == 3 || terminate == 4){
+	printf("\n\nproc %d terminate is %d\n\n", index , terminate);
+		
+	if(terminate == 1 || terminate == 2 || terminate == 3 || terminate == 4 || terminate == 5){
 		//If we are terminating send msg to OSS and call handler.
 		buf.request = 99;
 		
@@ -127,7 +129,7 @@ printf("Message sent by process %d request is %d\n", index, buf.request);
 }
 */
 if(msgrcv(msqid, &buf, sizeof(struct msgbuf), (index + 1), 0) == -1){
-        perror("msgrcv");
+        perror("msgrcv in user");
         exit(1);
 }
 
@@ -143,7 +145,7 @@ x++;
 
 
 
-shmctl(shmid, IPC_RMID, NULL);
+myhandler(1);
 
 }
 
@@ -151,8 +153,8 @@ shmctl(shmid, IPC_RMID, NULL);
 static void myhandler(int s){
 
 int shmid = shmget(CLOCK_SHMKEY, CLOCK_BUF, 0777);
-
-shmctl(shmid, IPC_RMID, NULL);
+char* str = (char*) shmat(shmid, 0, 0);
+shmdt(str);
 
 exit(1);
 }
