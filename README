@@ -1,0 +1,58 @@
+#Author: Brian Goodrich Project 6 CS 4760
+
+The purpose of this program is to simulate a memory management module. 
+
+This program takes no arguemnts and is implemented with a paging memory management scheme. It uses FIFO for the frame replacement algorithm.
+
+Interprocess communication is done through message queues in this project. To communicate with specific processes I send a message with that processes index + 1. The index of a project is tracked in an array in OSS as well as sent to OSS in the msgbuf of each message sent by the user process.
+
+--OSS--
+
+OSS is the logical portion of this project that waits for requests from user processes and will either grant them, or place the process in a suspended queue, "retrieve" the memory requested from a hypothetical disk drive, and then grant the request later.
+
+OSS has a logical clock in shared memory that is incremented based on operations preformed. If a process is requesting a read/write for a page that is already in the frame table, we increment by 10ns for a read and 100ns for a write. If a process requests a page that is not in the frame table then we increment the clock by 14MS for a read, and 20MS for a write when retrieving from the disk. The clock is also incremented on each loop in OSS as overhead for the decision making process for each request. This helps to advance the clock so we get more processes generated. 
+
+	OSS generates new processes based on a randomly generated interval, and when it hits that interval on each second.
+
+When there is a page fault the process is not sent a message, so it remains blocked waiting on a message with its index, and is placed in the blocked queue in OSS. The queue is made up of structs representing a process, each struct in the queue will have the time in which it was initially blocked, its request, and the process that did the request. There is an if statement that is checked on each loop to see if the time it takes to read from disk has passed after the time that the process was initially blocked, so 14ms after a process was blocked it will be granted its request if possible. The process at the head of the queue is checked for this condition that its time has come to be granted its request, if it is then its removed from the queue and fulfilled, allowing it to keep requesting more. 
+
+In my implementation of the Page Table/Frame Table I have a fixed size array of 18x32 in OSS, 18 for all 18 potentially running processes, and 32 so that each process has 32 pages. The frame table is of size 256 and contains identifying information for each page. I chose to put information such as dirty bit, occupied flag, process, page requested in the frame table because as I progressed with the project it made logical sense to me to do it this way, so that the page table was only storing an index that mapped to its physical location in the frame table, and the frame table would store identifying information.
+
+OSS has a FIFO algorithm to replace frames in the frame table if it is full. This is done right after a request is recieved from a process. If the frame table is full, replace index 0 initially, then increment our replacement frame to the next in the table. If we increment to 256 I set it back to 0 so that we replace them in a circular manner.
+
+Each second that passes on the logical clock OSS will output the state of the frame table.
+
+--User--
+
+User process is what takes over after forks from OSS, it essentially is just repeatedly looping requesting memory. The user process will generate a random number from 1 - 32k to request from OSS, OSS will divide this nubmer by 1,000 to get the page requested.
+
+To decide whether it is doing a read or write User will generate a random number 1 - 8, and if it is 7 or 8 it will set its operation flag to 0 meaning its doing a write, else it sets it to 1 denoting a read operation. This gives it a 75% chance of preforming a read operation.
+
+To decide if its time to terminate, we keep track of how many loops the user process does, and this will be its number of memory references, since when it is blocked by msgrcv it will not be looping, the only time it requests is when it loops. So every 1,000 memory references we check to see if it should terminate, there weren't explicit instructions on how to decide if its time to terminate or not so I just generate a number 1 - 10 and if its 1 - 5 I set termination flag. So 50% chance of terminating after 1k memory references. The termination flag will be set, message sent to OSS, and OSS will free those spaces in the frame table, process table, and other structures and set back to default values so they may be occupied by the next process.
+
+--Operation--
+
+In general this program functions by OSS incrementing the clock, forking users and handling memory requests from users with a page and frame table. It uses FIFO to replace frames when the frame table is full, and outputs information about what it is doing to the text file "output.txt"
+
+--Termination-- 
+
+This program will terminate after 2 real life seconds, or 100 processes have been created.
+
+--Running the project--
+
+To run this project you can type "make" in the project directory compiling the two .c files. 
+
+Then type "./oss" to start running the project.
+
+Output for the project will be in the "output.txt" file, this file is limited to 10,000 lines.
+
+When terminated OSS sends kill signal to all child processes tracked in an array in OSS, each child has a handler that will disconnect it from shared memory and exit. OSS also has a handler that is doing all of this, and will destroy all shared memory, and the message queue after all processes have terminated. ctrl+C is also handled here too. 
+
+#NOTE I do currently have the total number of processes ever created limited to 18 for safety, I didn't have any problems when I turned it up to 100 total created but just in general I don't want to mess up anyones stuff or lock them out. I never had any seg faults or error messages while running the final version of this project so it seems to be safe.  
+
+#NOTE on output: The output file is limited to 10,000 lines so with something like 4-5 processes it will fill up really quickly. I have confirmed by outputting the clock, and doing system("ps") in my handler that it is properly creating the amount of processes, and it is receiving and granting requests to them just fine as well as the FIFO algorithm, but the output.txt file just fills up too fast to see output from them. I have even made the fprintf statements execute in an alternating way so that each process takes turns, but up to 4 processes it just fills up the file too fast to see any past 4. 
+-------Also since termination chance is 50% sometimes you will get the first process to terminate after 1k references, it may take running once or twice to get it to fill the file. Majority of the time for me it didn't seem to do this though, but did happen once or twice.
+
+
+
+

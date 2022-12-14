@@ -77,7 +77,7 @@ procArray[i].request = -1;
 procArray[i].operation = -1;
 }
 
-//array of frames that is our frame table.
+//Set up frame table
 struct frame frameTable[256];
 //Default occupied to 0 and dirty/process to -1.
 for(i = 0; i < 256; i++){
@@ -141,7 +141,6 @@ signal(SIGINT, myhandler);
 //Set up file stuff
 int fileLines = 0;
 FILE *filePtr = fopen("output.txt", "w");
-
 if(filePtr == NULL){
 perror("file open error");
 }
@@ -163,7 +162,7 @@ clock[1] = 0;
 int x;
 int nextProcessIndex = 0;
 int flag = 1;
-int previousProc;
+int previousProc = 100;
 int frameFlag = 0;
 int replaceFrame = 0;
 
@@ -271,7 +270,7 @@ if(totalProcesses > 0){
 		
 		buf.mtype = returnedProc.process + 1;
 		
-		if(fileLines < 10000){
+		if(fileLines < 10000 && previousProc != buf.procIndex){
 			fprintf(filePtr, "Process %d removed from suspended queue, granted page %d TIME: %d sec %d ns\n", returnedProc.process, returnedProc.request, clock[0], clock[1]);
 			fileLines++;
 		}		
@@ -328,7 +327,7 @@ if(totalProcesses > 0){
 
 	
 
-	if(fileLines < 10000){
+	if(fileLines < 10000 && previousProc != buf.procIndex){
         fprintf(filePtr,"Process %d has requested operation %d to memory location %d TIME: %d sec %d ns\n", buf.procIndex, buf.operation, buf.request, clock[0], clock[1]);
         fileLines++;
         }
@@ -339,7 +338,7 @@ if(totalProcesses > 0){
 	//If the page isnt in the frame table, we have a page fault
 	//Need to place process in queue, then place that page in frame table.
 	if(pageTable[buf.procIndex][pageNum] == -1){
-		if(fileLines < 10000){
+		if(fileLines < 10000 && previousProc != buf.procIndex){
 		fprintf(filePtr, "Page fault on process %d page %d. TIME: %d sec %d ns\n", buf.procIndex, pageNum, clock[0], clock[1]);
 		fileLines++;
 		}
@@ -385,6 +384,9 @@ if(totalProcesses > 0){
 			if(replaceFrame == 256){
 				replaceFrame = 0;
 			}
+			
+			//Increment the clock by and extra 10ms when we have to run the FIFO replacement algorithm on a page fault.
+			clock[1]+= 10000000;
 
 		}
 
@@ -419,7 +421,7 @@ if(totalProcesses > 0){
 		else
 			clock[1] += 10;
 
-		if(fileLines < 10000){
+		if(fileLines < 10000 && previousProc != buf.procIndex){
         	fprintf(filePtr,"Granting process %d operation %d on memory location %d. TIME: %d sec %d ns\n", buf.procIndex, buf.operation, buf.request, clock[0], clock[1]);
        		fileLines++;
         	}
@@ -429,6 +431,8 @@ if(totalProcesses > 0){
 		buf.mtype = buf.procIndex + 1;
 		buf.request = 0; //Since requests are from 1-32k we set to 0 when request approved.
 	
+		previousProc = buf.procIndex;
+		
 		if(msgsnd(msqid, &buf, sizeof(struct msgbuf), 0) == -1)
                 perror("in oss msgsend");
 
@@ -438,9 +442,6 @@ if(totalProcesses > 0){
 //Adding overhead for oss process.
 clock[1] += 500000;
 
-if(clock[0] == nextSecond){
-printf("%d sec %d ns\n", clock[0], clock[1]);
-}
 }//End while
 
 
@@ -453,19 +454,21 @@ myhandler(1);
 }
 
 static void myhandler(int s){
+	
+	int msqid;
+	key_t key;
 
-	system("ps");
 	int i;
 	for(i = 0; i < 18; i++){
 		if(childPids[i] != -2){
-			kill(childPids[i], SIGINT);
+			kill(childPids[i], SIGKILL);
 		}
 	}
 
-	while(wait(NULL) > 0);
 
-	int msqid;
-	key_t key;
+
+	struct msgbuf buf;
+	strcpy(buf.mtext, "hello\0");
 
 	if ((key = ftok("msgq.txt", 'b')) == -1){
                 perror("ftok");
