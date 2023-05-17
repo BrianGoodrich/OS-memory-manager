@@ -1,6 +1,6 @@
-#Author: Brian Goodrich Project 6 CS 4760
+#Author: Brian Goodrich
 
-The purpose of this program is to simulate a memory management module. 
+The purpose of this program is to simulate a memory management module in an operating system. 
 
 This program takes no arguemnts and is implemented with a paging memory management scheme. It uses FIFO for the frame replacement algorithm.
 

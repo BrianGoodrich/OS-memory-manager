@@ -1,0 +1,17 @@
+commit f0ee571f55d74663022cb4d0945d859107773f7e
+Author: brian goodrich <goodrich@hoare7.cs.umsl.edu>
+Date:   Tue Dec 13 21:31:42 2022 -0600
+
+    Project finished, attempted to alternate processes writing to file but the file still fills up too fast. Made README and removed some printf statements, switched to sigkill for terminating all child processes.
+
+commit 5376a4d25ec2ec8e1e3675832afdd566d499f9d7
+Author: brian goodrich <goodrich@hoare7.cs.umsl.edu>
+Date:   Tue Dec 13 16:13:36 2022 -0600
+
+    Project logically finished, FIFO implemented, outputting to file with the frame table outputting every second on the logical clock. About to write readme and remove some print statements I was using to keep track of things
+
+commit 77a495d7e508e4b14f2444b493ad57c9d662ae27
+Author: brian goodrich <goodrich@hoare7.cs.umsl.edu>
+Date:   Fri Dec 9 16:27:34 2022 -0600
+
+    Just realized I hadn't been using git, but at this point I just finished the process termination handling in user and oss. Last running state was that OSS would fork 2 processes and I was just having them continually request stuff and I was granting every request on multiple processes until the program timed out. Was working fine. Current state is that we are now updating frame and page table upon request, handling page faults, placing processes in queue, checking queue if the time is right for the process at the head of the queue, if it is grant that request. Also just granting request if it is already in frame table. Writing to file currently working. Have not tested newly implemented stuff with queue. Commit before testing and implementing FIFO if frame table is full.
